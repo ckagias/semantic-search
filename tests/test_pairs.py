@@ -1,5 +1,5 @@
 from src.data import load_qrels
-from src.pairs import build_pairs, train_pairs
+from src.pairs import add_hard_negatives, build_pairs, train_pairs
 from src.splits import load_splits
 
 CORPUS = {
@@ -41,3 +41,32 @@ def test_all_pairs_include_leaky_queries_and_cover_every_train_query():
     pairs = train_pairs(clean_only=False)
     assert {p["qid"] for p in pairs} == set(splits.train)
     assert len(pairs) > len(train_pairs(clean_only=True))
+
+
+def test_hard_negatives_are_ranked_unjudged_non_test_documents():
+    corpus = {str(i): {"title": f"T{i}", "text": "x"} for i in range(30)}
+    qrels = {"1": {"3": 1, "4": 0}}
+    banned = {"5"}
+    pairs = build_pairs(["1"], {"1": "q"}, qrels, corpus)
+    ranking = ["3", "4", "5", "6", "7"] + [str(i) for i in range(8, 30)]
+    out = add_hard_negatives(pairs, lambda q: ranking, qrels, corpus, banned, top_k=3)
+    assert out[0]["neg_id"] in {"4", "6", "7"}
+    assert out[0]["neg"] == f"T{out[0]['neg_id']} x"
+
+
+def test_hard_negatives_are_reproducible_and_vary_with_seed():
+    corpus = {str(i): {"title": f"T{i}", "text": "x"} for i in range(60)}
+    qrels = {str(q): {"0": 1} for q in range(1, 40)}
+    pairs = build_pairs(list(qrels), {q: "q" for q in qrels}, qrels, corpus)
+    rank = lambda q: [str(i) for i in range(1, 60)]
+    a = add_hard_negatives(pairs, rank, qrels, corpus, set(), seed=0)
+    assert a == add_hard_negatives(pairs, rank, qrels, corpus, set(), seed=0)
+    assert a != add_hard_negatives(pairs, rank, qrels, corpus, set(), seed=1)
+
+
+def test_train_pairs_with_hard_negatives_avoid_test_documents_and_own_positives():
+    test_docs = {d for docs in load_qrels("test").values() for d in docs}
+    qrels = load_qrels("train")
+    for pair in train_pairs(clean_only=True, hard_negatives=True):
+        assert pair["neg_id"] not in test_docs
+        assert qrels[pair["qid"]].get(pair["neg_id"], 0) == 0

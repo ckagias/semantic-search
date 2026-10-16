@@ -32,3 +32,10 @@ def test_a_document_with_many_pairs_lands_in_separate_batches():
     pairs = [pair(str(i), "same") for i in range(4)]
     batches = make_batches(pairs + [pair("x", "other"), pair("y", "other2")], batch_size=4, seed=0)
     assert all(sum(p["doc_id"] == "same" for p in b) <= 1 for b in batches)
+
+
+def test_batches_with_negatives_keep_a_negative_out_of_other_positives():
+    pairs = [{**pair(str(i), str(i)), "neg_id": str((i + 1) % 10)} for i in range(10)]
+    for batch in make_batches(pairs, batch_size=6, seed=0):
+        positives = {p["doc_id"] for p in batch}
+        assert not any(p["neg_id"] in positives for p in batch)

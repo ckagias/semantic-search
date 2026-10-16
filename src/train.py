@@ -30,12 +30,20 @@ def make_batches(pairs, batch_size, seed):
     rng.shuffle(remaining)
     batches = []
     while remaining:
-        batch, qids, docs, rest = [], set(), set(), []
+        batch, qids, positives, negatives, rest = [], set(), set(), set(), []
         for pair in remaining:
-            if len(batch) < batch_size and pair["qid"] not in qids and pair["doc_id"] not in docs:
+            neg = pair.get("neg_id")
+            clash = (
+                pair["qid"] in qids
+                or pair["doc_id"] in positives
+                or pair["doc_id"] in negatives
+                or neg in positives
+            )
+            if len(batch) < batch_size and not clash:
                 batch.append(pair)
                 qids.add(pair["qid"])
-                docs.add(pair["doc_id"])
+                positives.add(pair["doc_id"])
+                negatives.add(neg)
             else:
                 rest.append(pair)
         batches.append(batch)
@@ -53,6 +61,8 @@ def train_epoch(model, optimizer, scheduler, batches, prefix):
     for batch in batches:
         queries = embed(model, [prefix + p["query"] for p in batch])
         docs = embed(model, [p["doc"] for p in batch])
+        if "neg" in batch[0]:
+            docs = torch.cat([docs, embed(model, [p["neg"] for p in batch])])
         loss = in_batch_loss(queries, docs)
         optimizer.zero_grad()
         loss.backward()
@@ -72,16 +82,16 @@ def score_val(model, run, epoch, corpus, queries, qrels, val, prefix, cached_nam
         return evaluate(DenseSearch(model, doc_ids, emb, prefix).system(), queries, qrels, val)
 
 
-def main(model_name=DEFAULT_MODEL, run=None, seed=SEED, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR):
+def main(model_name=DEFAULT_MODEL, negatives="in-batch", seed=SEED, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR):
     seed, epochs, batch_size, lr = int(seed), int(epochs), int(batch_size), float(lr)
-    run = run or f"{model_name.split('/')[-1]}_s{seed}"
+    run = f"{model_name.split('/')[-1]}_{negatives}_s{seed}"
     torch.manual_seed(seed)
 
     corpus = load_corpus()
     queries = load_queries()
     qrels = load_qrels("train")
     val = load_splits().val
-    pairs = train_pairs(clean_only=True)
+    pairs = train_pairs(clean_only=True, hard_negatives=negatives == "hard", seed=seed)
     prefix = QUERY_PREFIX.get(model_name, "")
 
     model = SentenceTransformer(model_name, device="cpu")
