@@ -55,3 +55,18 @@ def test_candidates_are_documents_with_any_query_term():
     assert index.candidates(["cats", "bark"]) == {"d1", "d2"}
     assert index.candidates(["missing"]) == set()
     assert index.candidates([]) == set()
+
+
+def test_stemmed_tokenizer_merges_inflections():
+    from src.index import tokenize_stemmed
+
+    assert tokenize_stemmed("bullied bullying") == ["bulli", "bulli"]
+    assert tokenize_stemmed("Mutations mutation") == ["mutat", "mutat"]
+
+
+def test_index_uses_the_given_tokenizer():
+    from src.index import tokenize_stemmed
+
+    index = InvertedIndex(CORPUS, tokenizer=tokenize_stemmed)
+    assert index.postings["cat"] == {"d1": 2}
+    assert index.tokenizer is tokenize_stemmed

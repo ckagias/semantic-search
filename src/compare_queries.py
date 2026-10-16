@@ -4,8 +4,8 @@ from sentence_transformers import SentenceTransformer
 
 from src.data import load_corpus, load_qrels, load_queries
 from src.dense import DenseSearch, encode_corpus
-from src.index import InvertedIndex, doc_tokens, tokenize
-from src.keyword import BM25, BM25_TUNED
+from src.index import doc_tokens, tokenize
+from src.keyword import BM25_TUNED, build_bm25
 from src.score_dense import BGE_PREFIX
 from src.splits import load_splits
 
@@ -26,7 +26,7 @@ def main():
     qrels = load_qrels("train")
     val = load_splits().val
 
-    bm25 = BM25(InvertedIndex(corpus), **BM25_TUNED).system()
+    bm25 = build_bm25(corpus).system()
     model = SentenceTransformer(MODEL, device="cpu")
     doc_ids, emb, _ = encode_corpus(model, corpus, MODEL)
     dense = DenseSearch(model, doc_ids, emb, BGE_PREFIX).system()

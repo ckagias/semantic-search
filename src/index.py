@@ -1,23 +1,37 @@
 import re
 from collections import Counter
+from functools import lru_cache
+
+from nltk.stem.snowball import EnglishStemmer
 
 TOKEN = re.compile(r"\w+")
+_stemmer = EnglishStemmer()
 
 
 def tokenize(text):
     return TOKEN.findall(text.lower())
 
 
-def doc_tokens(doc):
-    return tokenize(doc["title"] + " " + doc["text"])
+@lru_cache(maxsize=None)
+def _stem(word):
+    return _stemmer.stem(word)
+
+
+def tokenize_stemmed(text):
+    return [_stem(w) for w in tokenize(text)]
+
+
+def doc_tokens(doc, tokenizer=tokenize):
+    return tokenizer(doc["title"] + " " + doc["text"])
 
 
 class InvertedIndex:
-    def __init__(self, corpus):
+    def __init__(self, corpus, tokenizer=tokenize):
+        self.tokenizer = tokenizer
         self.postings = {}
         self.doc_len = {}
         for doc_id in sorted(corpus):
-            tokens = doc_tokens(corpus[doc_id])
+            tokens = doc_tokens(corpus[doc_id], tokenizer)
             self.doc_len[doc_id] = len(tokens)
             for term, tf in Counter(tokens).items():
                 self.postings.setdefault(term, {})[doc_id] = tf

@@ -1,7 +1,6 @@
 from src.data import DATA_DIR, load_corpus, load_qrels, load_queries
 from src.evaluate import evaluate
-from src.index import InvertedIndex
-from src.keyword import BM25, BM25_TUNED
+from src.keyword import BM25_TUNED, build_bm25
 from src.splits import load_splits
 
 OUT = DATA_DIR.parent / "bm25_val_per_query.csv"
@@ -12,7 +11,7 @@ def main():
     queries = load_queries()
     qrels = load_qrels("train")
     val = load_splits().val
-    system = BM25(InvertedIndex(corpus), **BM25_TUNED).system()
+    system = build_bm25(corpus).system()
 
     result = evaluate(system, queries, qrels, val)
     result.per_query.to_csv(OUT)

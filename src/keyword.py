@@ -1,9 +1,9 @@
 import math
 
 from src.evaluate import rank_from_scores
-from src.index import tokenize
+from src.index import InvertedIndex, tokenize_stemmed
 
-BM25_TUNED = {"k1": 2.1, "b": 0.5, "idf": "lucene"}
+BM25_TUNED = {"k1": 1.8, "b": 0.5, "idf": "lucene"}
 
 
 class TfidfSearch:
@@ -30,7 +30,7 @@ class TfidfSearch:
 
     def system(self):
         def rank(query):
-            return rank_from_scores_dict(self.scores(tokenize(query)))
+            return rank_from_scores_dict(self.scores(self.index.tokenizer(query)))
 
         return rank
 
@@ -64,7 +64,7 @@ class BM25:
 
     def system(self):
         def rank(query):
-            return rank_from_scores_dict(self.scores(tokenize(query)))
+            return rank_from_scores_dict(self.scores(self.index.tokenizer(query)))
 
         return rank
 
@@ -72,3 +72,7 @@ class BM25:
 def rank_from_scores_dict(scores):
     ids = list(scores)
     return rank_from_scores(ids, [scores[d] for d in ids])
+
+
+def build_bm25(corpus):
+    return BM25(InvertedIndex(corpus, tokenize_stemmed), **BM25_TUNED)
