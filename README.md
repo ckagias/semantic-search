@@ -24,22 +24,6 @@ nDCG@10 on the 165 validation queries, 95% bootstrap interval over queries. Full
 - Fine-tuning MiniLM on 475 train pairs: in-batch negatives alone give no measurable gain (+0.006); BM25 hard negatives give +0.036 (+0.011 to +0.062) but stay below BM25 and cost recall@100.
 - Selection on the same validation queries makes the best rows slightly optimistic.
 
-## Layout
-
-```
-src/
-  data.py, splits.py          load SciFact; group-aware train/validation split, leaky-query flag
-  metrics.py, evaluate.py     recall@k, MRR@10, nDCG@10, per-query scores, bootstrap intervals
-  baselines.py                random and shortest-first floors
-  index.py, keyword.py        tokenizer, inverted index, TF-IDF and BM25 by hand
-  stemming.py                 Snowball stemming for BM25
-  dense.py                    corpus encoding with cached embeddings, exact cosine search
-  hybrid.py                   weighted-sum and reciprocal-rank fusion of BM25 and dense scores
-  pairs.py, loss.py, train.py fine-tuning pairs, in-batch contrastive loss by hand, training loop
-  tune_bm25.py, score_*.py, compare_queries.py, summarize_finetune.py   experiment scripts
-tests/                        metrics worked by hand, BM25 against rank_bm25, loss against sentence-transformers, split and pair leakage checks
-```
-
 ## Setup
 
 ```
