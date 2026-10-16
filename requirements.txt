@@ -1,0 +1,6 @@
+torch
+sentence-transformers
+rank_bm25
+pandas
+matplotlib
+pytest
