@@ -2,7 +2,7 @@
 
 Keyword search (BM25), pretrained embeddings and a fine-tuned bi-encoder, compared on BEIR SciFact with the same metrics and the same queries. The aim is to understand retrieval end to end: index, query, rank, metrics, and contrastive fine-tuning. A tie with BM25 is a valid result if it can be explained.
 
-Status: work in progress. Phases 0 to 5 are done (setup, data, evaluation, BM25, pretrained embeddings, fine-tuning). Error analysis, scaling and the API are still to do. All numbers below are validation numbers (165 queries); the 300 test queries have not been scored yet.
+Status: work in progress. Phases 0 to 4 are done (setup, data, evaluation, BM25, pretrained embeddings); phase 5 (fine-tuning) is done except the multi-seed range, which is still running. Error analysis, scaling and the API are still to do. All numbers below are validation numbers (165 queries); the 300 test queries have not been scored yet.
 
 ## Results so far
 
