@@ -3,6 +3,8 @@ import math
 from src.evaluate import rank_from_scores
 from src.index import tokenize
 
+BM25_TUNED = {"k1": 2.1, "b": 0.5, "idf": "lucene"}
+
 
 class TfidfSearch:
     def __init__(self, index):
