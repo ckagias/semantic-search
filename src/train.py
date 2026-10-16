@@ -1,5 +1,5 @@
+import argparse
 import random
-import sys
 import time
 
 import pandas as pd
@@ -82,16 +82,15 @@ def score_val(model, run, epoch, corpus, queries, qrels, val, prefix, cached_nam
         return evaluate(DenseSearch(model, doc_ids, emb, prefix).system(), queries, qrels, val)
 
 
-def main(model_name=DEFAULT_MODEL, negatives="in-batch", seed=SEED, epochs=EPOCHS, batch_size=BATCH_SIZE, lr=LR):
-    seed, epochs, batch_size, lr = int(seed), int(epochs), int(batch_size), float(lr)
-    run = f"{model_name.split('/')[-1]}_{negatives}_s{seed}"
+def main(model_name, negatives, seed, epochs, batch_size, lr, n_queries):
+    run = f"{model_name.split('/')[-1]}_{negatives}" + (f"_n{n_queries}" if n_queries else "") + f"_s{seed}"
     torch.manual_seed(seed)
 
     corpus = load_corpus()
     queries = load_queries()
     qrels = load_qrels("train")
     val = load_splits().val
-    pairs = train_pairs(clean_only=True, hard_negatives=negatives == "hard", seed=seed)
+    pairs = train_pairs(clean_only=True, hard_negatives=negatives == "hard", seed=seed, n_queries=n_queries)
     prefix = QUERY_PREFIX.get(model_name, "")
 
     model = SentenceTransformer(model_name, device="cpu")
@@ -100,7 +99,7 @@ def main(model_name=DEFAULT_MODEL, negatives="in-batch", seed=SEED, epochs=EPOCH
     scheduler = get_linear_schedule_with_warmup(
         optimizer, round(WARMUP_FRACTION * epochs * steps_per_epoch), epochs * steps_per_epoch
     )
-    print(f"{run}: {len(pairs)} pairs, {steps_per_epoch} batches of up to {batch_size} per epoch, lr {lr}")
+    print(f"{run}: {len(pairs)} pairs from {len({p['qid'] for p in pairs})} queries, {steps_per_epoch} batches of up to {batch_size} per epoch, lr {lr}")
 
     rows = []
     best = -1.0
@@ -137,4 +136,13 @@ def main(model_name=DEFAULT_MODEL, negatives="in-batch", seed=SEED, epochs=EPOCH
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--negatives", choices=["in-batch", "hard"], default="in-batch")
+    parser.add_argument("--seed", type=int, default=SEED)
+    parser.add_argument("--epochs", type=int, default=EPOCHS)
+    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
+    parser.add_argument("--lr", type=float, default=LR)
+    parser.add_argument("--n-queries", type=int, default=None)
+    args = parser.parse_args()
+    main(args.model, args.negatives, args.seed, args.epochs, args.batch_size, args.lr, args.n_queries)

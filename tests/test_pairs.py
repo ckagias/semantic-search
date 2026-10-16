@@ -70,3 +70,11 @@ def test_train_pairs_with_hard_negatives_avoid_test_documents_and_own_positives(
     for pair in train_pairs(clean_only=True, hard_negatives=True):
         assert pair["neg_id"] not in test_docs
         assert qrels[pair["qid"]].get(pair["neg_id"], 0) == 0
+
+
+def test_subsampled_train_pairs_use_exactly_n_clean_queries_and_depend_on_the_seed():
+    a = train_pairs(clean_only=True, n_queries=50, seed=0)
+    assert len({p["qid"] for p in a}) == 50
+    assert {p["qid"] for p in a} <= {p["qid"] for p in train_pairs(clean_only=True)}
+    assert a == train_pairs(clean_only=True, n_queries=50, seed=0)
+    assert {p["qid"] for p in a} != {p["qid"] for p in train_pairs(clean_only=True, n_queries=50, seed=1)}

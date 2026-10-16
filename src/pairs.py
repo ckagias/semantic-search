@@ -35,12 +35,14 @@ def add_hard_negatives(pairs, rank, qrels, corpus, banned, seed=0, top_k=HARD_TO
     return out
 
 
-def train_pairs(clean_only=True, hard_negatives=False, seed=0):
+def train_pairs(clean_only=True, hard_negatives=False, seed=0, n_queries=None):
     corpus = load_corpus()
     queries = load_queries()
     qrels = load_qrels("train")
     splits = load_splits()
     qids = [q for q in splits.train if not (clean_only and q in splits.leaky)]
+    if n_queries is not None:
+        qids = random.Random(seed).sample(sorted(qids), n_queries)
     pairs = build_pairs(qids, queries, qrels, corpus)
     if hard_negatives:
         banned = {d for docs in load_qrels("test").values() for d in docs}
