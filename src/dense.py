@@ -1,3 +1,4 @@
+import json
 import re
 import time
 
@@ -20,8 +21,10 @@ def slug(model_name):
 def encode_corpus(model, corpus, model_name, batch_size=32, use_cache=True):
     doc_ids = sorted(corpus)
     path = EMB_DIR / f"{slug(model_name)}.npy"
+    meta_path = path.with_suffix(".json")
     if use_cache and path.exists():
-        return doc_ids, np.load(path), None
+        seconds = json.loads(meta_path.read_text())["seconds"] if meta_path.exists() else None
+        return doc_ids, np.load(path), seconds
     start = time.perf_counter()
     emb = model.encode(
         [doc_text(corpus[d]) for d in doc_ids],
@@ -32,17 +35,19 @@ def encode_corpus(model, corpus, model_name, batch_size=32, use_cache=True):
     seconds = time.perf_counter() - start
     EMB_DIR.mkdir(exist_ok=True)
     np.save(path, emb)
+    meta_path.write_text(json.dumps({"seconds": seconds, "n_docs": len(doc_ids)}))
     return doc_ids, emb, seconds
 
 
 class DenseSearch:
-    def __init__(self, model, doc_ids, doc_emb):
+    def __init__(self, model, doc_ids, doc_emb, query_prefix=""):
         self.model = model
+        self.query_prefix = query_prefix
         self.doc_ids = doc_ids
         self.doc_emb = doc_emb
 
     def scores(self, query):
-        q = self.model.encode(query, normalize_embeddings=True, show_progress_bar=False)
+        q = self.model.encode(self.query_prefix + query, normalize_embeddings=True, show_progress_bar=False)
         return self.doc_emb @ q
 
     def system(self):

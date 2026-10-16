@@ -8,6 +8,11 @@ from src.dense import DenseSearch, encode_corpus, slug
 from src.evaluate import bootstrap_ci, evaluate
 from src.splits import load_splits
 
+BGE_PREFIX = "Represent this sentence for searching relevant passages: "
+QUERY_PREFIX = {
+    "BAAI/bge-small-en-v1.5": BGE_PREFIX,
+    "BAAI/bge-base-en-v1.5": BGE_PREFIX,
+}
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 BM25_PER_QUERY = DATA_DIR.parent / "bm25_val_per_query.csv"
 
@@ -22,9 +27,9 @@ def main(model_name=DEFAULT_MODEL):
     print(f"{model_name}: max_seq_length {model.max_seq_length}, dim {model.get_embedding_dimension()}")
     doc_ids, emb, seconds = encode_corpus(model, corpus, model_name)
     if seconds is not None:
-        print(f"encoded {len(doc_ids)} documents in {seconds:.0f}s ({1000 * seconds / len(doc_ids):.0f} s per 1000)")
+        print(f"corpus encoding: {seconds:.0f}s ({1000 * seconds / len(doc_ids):.0f} s per 1000 documents)")
 
-    result = evaluate(DenseSearch(model, doc_ids, emb).system(), queries, qrels, val)
+    result = evaluate(DenseSearch(model, doc_ids, emb, QUERY_PREFIX.get(model_name, "")).system(), queries, qrels, val)
     result.per_query.to_csv(DATA_DIR.parent / f"{slug(model_name)}_val_per_query.csv")
     print(result.summary.round(3))
 
