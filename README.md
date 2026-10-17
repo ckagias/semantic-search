@@ -44,6 +44,29 @@ nDCG@10 on the 165 validation queries, 95% bootstrap interval over queries.
 - A pretrained cross-encoder (MS MARCO MiniLM) re-ranking the hybrid's top 50 lowered validation nDCG@10 from 0.794 to 0.737 (-0.057, -0.088 to -0.027) and costs 1.8 s per query against 0.1 s for the first stage.
 - Selection on the same validation queries makes the best rows slightly optimistic; on the test queries the hybrid and fine-tuning margins shrink (see above).
 
+## Charts
+
+![Test results](docs/img/test_results.png)
+
+![Where the fine-tuned model wins](docs/img/overlap_terciles.png)
+
+![Deleting the words shared with the answer](docs/img/overlap_probe.png)
+
+![Training data and seeds](docs/img/ablation_seeds.png)
+
+![Ceiling for a re-ranker](docs/img/ceiling.png)
+
+![Search at scale](docs/img/search_scale.png)
+
+## Where it fails
+
+- Rare names: for the claim about Esrrb and Mbd3, BM25 ranks the paper first, bge-base ranks it 83rd, the fine-tuned MiniLM misses the top 100, and the hybrid brings it back to rank 3.
+- Topic neighbours: the neural models often return a paper on the right topic that is not the judged one (a prevalence review for a panic-anxiety claim). In the validation error analysis, 8 of the 10 queries where BM25 beats the fine-tuned model most are of this kind.
+- Shared words: with the informative words shared between claim and answer deleted, every system loses most of its score (BM25 keeps 3% of its nDCG@10, bge-base 21%); deleting only the single rarest shared word costs BM25 and the neural models the same.
+- Fine-tuning is fragile: +0.036 over pretrained MiniLM on validation became +0.016 on test, the validation loss in recall@100 did not repeat, and the seed spread on test (0.016) was far larger than on validation (0.001).
+- A pretrained cross-encoder (MS MARCO MiniLM) lowered nDCG@10 of the hybrid's top 50 by 0.057 and costs 1.8 s per query.
+- Direction is ignored: claims that differ only in polarity ("positively" against "negatively related") get the same ranks. SciFact judges the same paper relevant for both, so this is not penalised here.
+
 ## Setup
 
 ```
@@ -67,6 +90,7 @@ python -m src.probe_overlap                 # delete or replace overlapping quer
 python -m src.bench_scale                   # exact search time at 5k, 50k and 500k vectors
 python -m src.bench_ann                     # FAISS IVF and HNSW against exact search
 python -m src.rerank                        # cross-encoder re-ranking of the hybrid's top 50 (MiniLM; --models for others)
+python -m src.make_plots                    # charts in docs/img from the score tables in data/
 ```
 
 Scripts write per-query score tables to `data/` and models to `models/`; both are untracked. `demo.ipynb` (run from the repository root, needs both folders) shows BM25, bge-base, the hybrid and the fine-tuned model side by side on example queries, with the test table.
