@@ -162,6 +162,27 @@ recall@100, control to overlap deleted: BM25 0.971 to 0.182, MiniLM pretrained 0
 - Fine-tuning does not change robustness. Fine-tuned minus pretrained is +0.033 (+0.006 to +0.060) on the control, +0.002 (-0.013 to +0.018) with the overlap deleted and +0.009 (-0.007 to +0.026) with synonyms; the drop caused by deletion is 0.030 larger for the fine-tuned model (-0.060 to 0.000). The fine-tuning gain is not visible once the overlapping words are gone.
 - The deleted words are the ones that identify the paper, so a large drop is unavoidable for any model and the probe cannot separate lexical matching from loss of information; the comparison with random deletion and between systems is what carries the result. One fine-tuned model, one seed, validation queries only.
 
+## Ceiling for a re-ranker on top of each first stage (validation, `src/ceiling.py`)
+
+For each first stage the top k documents are the candidates. A perfect re-ranker (oracle) puts every relevant candidate first, so its nDCG@10 is the best any re-ranker can reach from those candidates. Intervals are 95% bootstrap over the 165 queries. With 1.14 relevant documents per query the oracle nDCG@10 is almost equal to recall of the candidates, and the share of queries with at least one relevant candidate is within 0.01 of it.
+
+Oracle nDCG@10 by number of candidates (the first stage's own nDCG@10 in the last column):
+
+| first stage | k = 10 | k = 20 | k = 50 | k = 100 | own nDCG@10 |
+|---|---|---|---|---|---|
+| stemmed BM25 | 0.833 | 0.848 | 0.901 | 0.930 (0.889 to 0.967) | 0.698 |
+| MiniLM pretrained | 0.763 | 0.849 | 0.913 | 0.944 (0.908 to 0.976) | 0.625 |
+| MiniLM fine-tuned | 0.795 | 0.837 | 0.872 | 0.899 (0.852 to 0.942) | 0.662 |
+| bge-base | 0.895 | 0.916 | 0.950 | 0.974 (0.949 to 0.994) | 0.759 |
+| hybrid BM25 + bge-base | 0.910 | 0.934 | 0.950 | 0.968 (0.939 to 0.993) | 0.794 |
+| BM25 and bge-base, top 50 each (mean 84 documents, range 65 to 98) | n/a | n/a | n/a | 0.962 (0.932 to 0.988) | n/a |
+
+- Headroom for a re-ranker over the top 100 is large: +0.23 over BM25, +0.22 over bge-base and +0.17 over the hybrid. No re-ranker can exceed 0.968 on this first stage, and one limited to 20 candidates cannot exceed 0.934.
+- The hybrid is ahead of bge-base alone only at small k (recall 0.908 against 0.894 at 10, 0.932 against 0.914 at 20); at 50 and 100 the two are equal within the intervals. The hybrid's benefit is a better top of the list, not more coverage.
+- The fine-tuned MiniLM has a higher ceiling than the pretrained one only at k = 10 (0.795 against 0.763); at k = 20 they are equal within the intervals and at k = 50 and 100 it is lower than the pretrained model (0.872 against 0.913, 0.899 against 0.944), which is the recall@100 loss seen after fine-tuning. As a first stage for a re-ranker it is worse than the model it started from.
+- Taking the union of BM25's and bge-base's top 50 gives 0.962, no better than bge-base's top 100 (0.974): merging the two candidate sets adds no coverage over bge-base alone.
+- The cost of running a re-ranker over 50 or 100 candidates per query was not measured here.
+
 ## Not done yet
 
-Error analysis: recall@100 ceiling, test scores for each final system, exact versus approximate search timing, API and page.
+Test scores for each final system, exact versus approximate search timing, API and page.
