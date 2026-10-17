@@ -41,6 +41,7 @@ nDCG@10 on the 165 validation queries, 95% bootstrap interval over queries.
 - Pretrained bge-base beats stemmed BM25 by +0.061 (+0.017 to +0.106); MiniLM and mpnet-base lose to it.
 - The hybrid beats both parts: +0.096 over BM25 and +0.034 over bge-base alone.
 - Fine-tuning MiniLM on 475 train pairs, three seeds: in-batch negatives give +0.006 to +0.024 over pretrained; BM25 hard negatives give about +0.036 in every seed (0.661 to 0.662). Hard negatives beat in-batch in all three seeds, but the margin (+0.012 to +0.031) is only clearly above zero in one. The fine-tuned model stays below BM25 and loses recall@100.
+- A pretrained cross-encoder (MS MARCO MiniLM) re-ranking the hybrid's top 50 lowered validation nDCG@10 from 0.794 to 0.737 (-0.057, -0.088 to -0.027) and costs 1.8 s per query against 0.1 s for the first stage.
 - Selection on the same validation queries makes the best rows slightly optimistic; on the test queries the hybrid and fine-tuning margins shrink (see above).
 
 ## Setup
@@ -65,6 +66,7 @@ python -m src.analyze_errors                 # fine-tuned vs BM25, per query
 python -m src.probe_overlap                 # delete or replace overlapping query words (downloads NLTK WordNet)
 python -m src.bench_scale                   # exact search time at 5k, 50k and 500k vectors
 python -m src.bench_ann                     # FAISS IVF and HNSW against exact search
+python -m src.rerank                        # cross-encoder re-ranking of the hybrid's top 50 (MiniLM; --models for others)
 ```
 
 Scripts write per-query score tables to `data/` and models to `models/`; both are untracked.

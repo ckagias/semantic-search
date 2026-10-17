@@ -276,6 +276,22 @@ Build time: IVF 12.5 s (including training on 100,000 vectors), HNSW 33 s, flat 
 - The returned scores stay close to the exact ones even when the ids differ (score ratio 0.975 to 0.998 for most settings): the missed neighbours are mostly near-ties, which suggests the id overlap overstates the damage on this corpus.
 - Limits: the large corpus is synthetic, made of tight clusters of 100 near-duplicates, which is harder for a graph index than for the real distribution and unlike real documents; the absolute recall figures at scale do not transfer, and the timings are the more reliable result. Index memory was not measured (both indexes store the full 1.6 GB of vectors; HNSW adds its graph), quantisation (PQ) was not tried, one build per index, timings from one run each on 16 logical cores of a WSL2 machine.
 
+## Cross-encoder re-ranking of the hybrid's top candidates (validation, `src/rerank.py`)
+
+The first stage is the hybrid (BM25 + bge-base, alpha 0.2), nDCG@10 0.794, recall@10 0.908. The cross-encoder scores (query, title + abstract) pairs for the first 50 results and reorders them; results below the re-ranked part keep their first-stage order, so recall@100 is unchanged. `cross-encoder/ms-marco-MiniLM-L6-v2` (22M parameters, trained on MS MARCO web passages, not fine-tuned here), maximum 512 tokens, CPU, 165 validation queries. The ceiling for a perfect re-ranker over these candidates is 0.934 (20 candidates) and 0.950 (50).
+
+| candidates re-ranked | nDCG@10 | MRR@10 | recall@10 | difference from the hybrid | better / worse |
+|---|---|---|---|---|---|
+| none (hybrid) | 0.794 (0.742 to 0.842) | 0.764 | 0.908 | n/a | n/a |
+| top 20 | 0.745 (0.691 to 0.797) | 0.706 | 0.886 | -0.048 (-0.077 to -0.020) | 12 / 40 |
+| top 50 | 0.737 (0.682 to 0.790) | 0.698 | 0.878 | -0.057 (-0.088 to -0.027) | 11 / 41 |
+
+Cost per query on 16 logical cores: re-scoring 50 candidates takes a median 1.77 s (p95 2.15 s) with batches of 16 and 2.68 s with one batch of 50 (padding to 512 tokens makes the large batch slower). The whole first stage (BM25, bge-base query encoding, scoring all 5,183 documents) takes a median 104 ms, so the re-ranker costs about 17 times the first stage. `BAAI/bge-reranker-base` (278M parameters) takes a median 10.6 s per query (p95 12.1 s) for 50 candidates with batches of 16, and 13.5 s with one batch, measured on 5 queries; its quality was not evaluated, because a full validation run takes about 30 minutes and was stopped.
+
+- The MS MARCO MiniLM cross-encoder makes the ranking worse: -0.057 nDCG@10 over 50 candidates (interval below zero), worse on 41 queries and better on 11. Re-ranking fewer candidates hurts less (-0.048 for 20) but still hurts, so the damage is in the model's ordering of the top results, not in how far down it looks. A likely cause is the mismatch between web-passage relevance and SciFact's task of finding the paper that supports a claim; this was not tested, and the model was not fine-tuned on SciFact.
+- Even a re-ranker that worked would be expensive: the ceiling of 0.950 at 50 candidates is 0.156 above the hybrid, but each query costs 1.8 s with the small model and about 11 s with the base model, against 0.1 s for the first stage.
+- The re-ranker was not scored on the test queries: it is a negative result on validation, not a final system.
+
 ## Not done yet
 
 API and page.
