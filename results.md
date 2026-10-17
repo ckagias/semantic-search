@@ -1,6 +1,6 @@
-# Results (interim, validation only)
+# Results
 
-Dataset: BEIR SciFact, 5,183 documents (title + abstract), binary relevance, mean 1.14 relevant documents per train query. All scores are over the 165 validation queries unless stated; intervals are 95% bootstrap intervals over queries (10,000 resamples), paired when comparing two systems on the same queries. The 300 test queries have not been scored. Fine-tuning figures are for seed 0 unless a seed range is stated; the range over seeds 0 to 2 is in the Seeds section.
+Dataset: BEIR SciFact, 5,183 documents (title + abstract), binary relevance, mean 1.14 relevant documents per train query. All scores are over the 165 validation queries unless stated (the Test scores section is the exception: it holds the only scoring of the 300 test queries); intervals are 95% bootstrap intervals over queries (10,000 resamples), paired when comparing two systems on the same queries. The 300 test queries were scored once, at the end (see Test scores). Fine-tuning figures are for seed 0 unless a seed range is stated; the range over seeds 0 to 2 is in the Seeds section.
 
 ## Splits
 
@@ -183,6 +183,39 @@ Oracle nDCG@10 by number of candidates (the first stage's own nDCG@10 in the las
 - Taking the union of BM25's and bge-base's top 50 gives 0.962, no better than bge-base's top 100 (0.974): merging the two candidate sets adds no coverage over bge-base alone.
 - The cost of running a re-ranker over 50 or 100 candidates per query was not measured here.
 
+## Test scores (300 test queries, scored once, `src/score_test.py`)
+
+Settings were fixed on validation before this run: BM25 k1 1.8, b 0.5 with Snowball stemming; hybrid = weighted sum of min-max normalised scores, alpha 0.2 on BM25, with bge-base; fine-tuned MiniLM = hard negatives on the 415 clean train queries, 475 pairs, best validation epoch of each of three seeds (3, 4, 4). Before scoring, the saved models and cached embeddings were checked to reproduce the validation nDCG@10 of their logs (0.6617, 0.6611, 0.6620). The script refuses to run again while `data/test_per_query.csv` exists. 95% bootstrap intervals over the 300 queries.
+
+| system | nDCG@10 | MRR@10 | recall@10 | recall@100 |
+|---|---|---|---|---|
+| random ranking (5 seeds) | 0.000 to 0.002 | n/a | n/a | 0.006 to 0.028 |
+| stemmed BM25 | 0.686 (0.639 to 0.730) | 0.653 | 0.808 | 0.916 |
+| MiniLM pretrained | 0.645 (0.599 to 0.689) | 0.605 | 0.783 | 0.925 |
+| MiniLM fine-tuned, seed 0 | 0.668 (0.623 to 0.712) | 0.628 | 0.809 | 0.930 |
+| MiniLM fine-tuned, seed 1 | 0.662 (0.617 to 0.707) | 0.619 | 0.809 | 0.927 |
+| MiniLM fine-tuned, seed 2 | 0.652 (0.607 to 0.696) | 0.611 | 0.795 | 0.927 |
+| bge-base pretrained | 0.740 (0.700 to 0.779) | 0.703 | 0.874 | 0.967 |
+| hybrid BM25 + bge-base | 0.752 (0.711 to 0.791) | 0.720 | 0.875 | 0.980 |
+
+Paired nDCG@10 differences on the same queries (fine-tuned = mean of the three seeds per query, 0.661):
+
+| comparison | difference | better / worse |
+|---|---|---|
+| bge-base minus BM25 | +0.055 (+0.022 to +0.086) | 86 / 41 |
+| hybrid minus BM25 | +0.067 (+0.040 to +0.093) | 83 / 23 |
+| hybrid minus bge-base | +0.012 (-0.005 to +0.029) | 52 / 35 |
+| MiniLM pretrained minus BM25 | -0.041 (-0.076 to -0.006) | 62 / 73 |
+| fine-tuned MiniLM minus pretrained | +0.016 (+0.001 to +0.031) | 55 / 44 |
+| fine-tuned MiniLM minus BM25 | -0.025 (-0.059 to +0.009) | 69 / 77 |
+
+- The ranking of the systems matches validation: hybrid (0.752) and bge-base (0.740) on top, then BM25 (0.686), fine-tuned MiniLM (0.652 to 0.668) and pretrained MiniLM (0.645). The test scores are lower than validation for the hybrid (0.794 to 0.752) and bge-base (0.759 to 0.740) and slightly lower for BM25 (0.698 to 0.686); the fine-tuned MiniLM is unchanged (0.662 on validation, 0.661 mean of seeds on test) and the pretrained MiniLM is higher (0.625 to 0.645).
+- bge-base beats BM25 with an interval above zero (+0.055). The hybrid beats BM25 by +0.067, but its edge over bge-base alone (+0.012) is not distinguishable from zero on the test queries, against +0.034 (+0.010 to +0.059) on validation; the alpha was fitted on the validation queries, which explains part of the larger validation gap.
+- Fine-tuning gives +0.016 (+0.001 to +0.031) over pretrained MiniLM on the test queries, less than half of the +0.036 on validation (best epoch and model choice were made on validation). The seed range on the test queries is 0.652 to 0.668 (0.016), against 0.001 on validation, so the seed matters more here than the validation spread suggested.
+- Fine-tuned MiniLM against BM25: -0.025 (-0.059 to +0.009), as on validation not clearly below and not above. Fine-tuned MiniLM against pretrained bge-small or bge-base was not scored on test.
+- recall@100 does not fall with fine-tuning on the test queries (0.927 to 0.930 against 0.925 pretrained), where it fell from 0.943 to 0.908 on validation. The loss seen on validation did not reproduce; the recall@100 difference was not tested on the test queries.
+- Overlap between splits remains: 196 of the 300 test queries have a relevant document that a train query also points to. Fine-tuning used only the 415 clean train queries, so the models did not see those documents.
+
 ## Not done yet
 
-Test scores for each final system, exact versus approximate search timing, API and page.
+Exact versus approximate search timing, API and page.

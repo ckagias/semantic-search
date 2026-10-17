@@ -2,11 +2,30 @@
 
 Keyword search (BM25), pretrained embeddings and a fine-tuned bi-encoder, compared on BEIR SciFact with the same metrics and the same queries. The aim is to understand retrieval end to end: index, query, rank, metrics, and contrastive fine-tuning. A tie with BM25 is a valid result if it can be explained.
 
-Status: work in progress. Phases 0 to 4 are done (setup, data, evaluation, BM25, pretrained embeddings); phase 5 (fine-tuning, ablation, three seeds) is done. Error analysis, scaling and the API are still to do. All numbers below are validation numbers (165 queries); the 300 test queries have not been scored yet.
+Status: work in progress. Phases 0 to 6 are done (setup, data, evaluation, BM25, pretrained embeddings, fine-tuning, error analysis and the final test scoring). Scaling and the API are still to do. The first table is the final score on the 300 test queries, scored once; the second table is the validation numbers behind the choices.
 
 ## Results so far
 
-nDCG@10 on the 165 validation queries, 95% bootstrap interval over queries. Full write-up in [results.md](results.md).
+### Test queries (300, scored once)
+
+nDCG@10 with a 95% bootstrap interval over queries. Settings were fixed on validation before this run. Full write-up in [results.md](results.md).
+
+| system | nDCG@10 | recall@10 | recall@100 |
+|---|---|---|---|
+| Random ranking (5 seeds) | 0.000 to 0.002 | n/a | 0.006 to 0.028 |
+| BM25 (tuned, Snowball stemming) | 0.686 (0.639 to 0.730) | 0.808 | 0.916 |
+| all-MiniLM-L6-v2, pretrained | 0.645 (0.599 to 0.689) | 0.783 | 0.925 |
+| all-MiniLM-L6-v2, fine-tuned, BM25 hard negatives (3 seeds) | 0.652 to 0.668 | 0.795 to 0.809 | 0.927 to 0.930 |
+| bge-base-en-v1.5, pretrained | 0.740 (0.700 to 0.779) | 0.874 | 0.967 |
+| Hybrid: BM25 + bge-base, weighted sum (alpha 0.2) | 0.752 (0.711 to 0.791) | 0.875 | 0.980 |
+
+- bge-base beats BM25 by +0.055 (+0.022 to +0.086); the hybrid beats BM25 by +0.067 (+0.040 to +0.093) but is not distinguishable from bge-base alone (+0.012, -0.005 to +0.029).
+- Fine-tuned MiniLM beats pretrained MiniLM by +0.016 (+0.001 to +0.031), less than half of the validation gain, and is not distinguishable from BM25 (-0.025, -0.059 to +0.009).
+- A perfect re-ranker over the hybrid's top 100 would reach 0.968 nDCG@10 on validation, so the first stage still leaves about 0.17 of headroom.
+
+### Validation queries (165)
+
+nDCG@10 on the 165 validation queries, 95% bootstrap interval over queries.
 
 | system | nDCG@10 | recall@10 | recall@100 |
 |---|---|---|---|
@@ -22,7 +41,7 @@ nDCG@10 on the 165 validation queries, 95% bootstrap interval over queries. Full
 - Pretrained bge-base beats stemmed BM25 by +0.061 (+0.017 to +0.106); MiniLM and mpnet-base lose to it.
 - The hybrid beats both parts: +0.096 over BM25 and +0.034 over bge-base alone.
 - Fine-tuning MiniLM on 475 train pairs, three seeds: in-batch negatives give +0.006 to +0.024 over pretrained; BM25 hard negatives give about +0.036 in every seed (0.661 to 0.662). Hard negatives beat in-batch in all three seeds, but the margin (+0.012 to +0.031) is only clearly above zero in one. The fine-tuned model stays below BM25 and loses recall@100.
-- Selection on the same validation queries makes the best rows slightly optimistic.
+- Selection on the same validation queries makes the best rows slightly optimistic; on the test queries the hybrid and fine-tuning margins shrink (see above).
 
 ## Setup
 
