@@ -106,6 +106,35 @@ Paired nDCG@10 differences on the validation queries (95% interval), per seed:
 - Data size: 100 queries give +0.011 (0.636), 200 give +0.027 (0.652) and 415 give +0.037 (0.662) over pretrained. The spread between seeds is at most 0.011 at 100 queries and 0.001 at 415.
 - With all queries, recall@100 falls to 0.908 with hard negatives (0.898 to 0.922) while in-batch keeps 0.944.
 
+## Error analysis: fine-tuned MiniLM against stemmed BM25 (validation, `src/analyze_errors.py`)
+
+Fine-tuned model: MiniLM, hard negatives, all clean queries, seed 0, epoch 3 (nDCG@10 0.662). Reciprocal rank is 1 / rank of the first relevant document over the full ranking of the corpus (1/1000 when it is outside the top 100). Overlap is the share of a query's distinct words that occur in its relevant document. Per-query table in `data/error_analysis_val.csv`.
+
+Rank of the first relevant document (165 queries):
+
+| system | rank 1 | rank 2 to 10 | rank 11 to 100 | not in top 100 |
+|---|---|---|---|---|
+| stemmed BM25 | 98 | 42 | 14 | 11 |
+| MiniLM pretrained | 79 | 48 | 29 | 9 |
+| MiniLM fine-tuned | 88 | 44 | 17 | 16 |
+
+Fine-tuned against BM25: better on 39 queries, worse on 46, equal on 80 (70 of them with both at rank 1, 5 with both outside the top 100). Of the 46 losses, 23 still have the fine-tuned model in the top 10 and 28 have BM25 at rank 1; 7 are large (BM25 in the top 3, fine-tuned outside the top 10). Of the 39 wins, 16 have BM25 outside the top 10 and 6 are large (fine-tuned in the top 3, BM25 outside the top 10).
+
+By keyword overlap (terciles of the overlap):
+
+| overlap tercile | queries | mean overlap | BM25 MRR | pretrained MRR | fine-tuned MRR | fine-tuned better | BM25 better |
+|---|---|---|---|---|---|---|---|
+| low | 63 | 0.35 | 0.340 | 0.343 | 0.413 | 29 | 21 |
+| mid | 53 | 0.61 | 0.766 | 0.644 | 0.661 | 9 | 17 |
+| high | 49 | 0.80 | 0.976 | 0.860 | 0.873 | 1 | 8 |
+
+- The fine-tuned model is ahead only on the low-overlap third. In the high-overlap third, where the document repeats most of the query's words, BM25 is near perfect (0.976) and the fine-tuned model is not (0.873, +0.013 over pretrained). Fine-tuning raised all three terciles, most on the low one (+0.070). The correlation between (fine-tuned minus BM25) reciprocal rank and overlap is -0.22.
+- The 10 largest BM25 wins were read. In 8, the fine-tuned top result is a paper on the same topic that is not the one the claim comes from (panic anxiety returns a prevalence review for the orexin paper; H. pylori and gastric cancer returns a mouse H. pylori mutation paper; bariatric surgery and colorectal cancer returns a colorectal cancer survival paper). In 2, the claim hinges on a rare name (HOXB4; Esrrb with Mbd3), BM25 puts the paper at rank 1, and the fine-tuned model returns an unrelated paper and misses the top 100.
+- The 10 largest fine-tuned wins were read. In 8, the claim and the document use different words for the same thing: students against pupils (bullying), OCT3/4 against Oct4, a drug name against the transport process it inhibits (AM404 and anandamide), "neural progenitors differ across species" against "species-specific differences in progenitor behavior". In 6 of the 10, BM25's top result is off topic and matches only a few words of the claim ("pioneer factor" gives a Pax7 paper; the negated "no known interaction between Deltex and eIF3" gives a vitamin D paper); in the other 4, BM25 has the right topic but ranks the paper 4 to 9.
+- Claims that differ only in direction (male/female swapped, positively/negatively related, "interacts" against "no known interaction") get the same rank for the same document in all three pairs found in validation. In SciFact the relevant paper is the same for both polarities, so this is not penalised here.
+- Fine-tuning moves 9 queries to rank 1 relative to pretrained but pushes 7 more queries out of the top 100 (9 to 16), the same effect as the lower recall@100 above. The queries were picked by size of the rank gap, so rank-1 BM25 results are over-represented among the losses by construction.
+- One model, one seed, 165 queries; the 20 queries were read by one person. The bge-base comparison against stemmed BM25 by overlap tercile (above, "Per-query comparison", run before stemming) has not been repeated.
+
 ## Not done yet
 
-Error analysis (queries where the fine-tuned model loses to BM25 and the reverse, keyword-overlap probes, recall@100 ceiling), test scores for each final system, exact versus approximate search timing, API and page.
+Error analysis: keyword-overlap probes (words removed or replaced by synonyms), recall@100 ceiling, test scores for each final system, exact versus approximate search timing, API and page.
