@@ -69,7 +69,7 @@ python -m src.bench_ann                     # FAISS IVF and HNSW against exact s
 python -m src.rerank                        # cross-encoder re-ranking of the hybrid's top 50 (MiniLM; --models for others)
 ```
 
-Scripts write per-query score tables to `data/` and models to `models/`; both are untracked.
+Scripts write per-query score tables to `data/` and models to `models/`; both are untracked. `demo.ipynb` (run from the repository root, needs both folders) shows BM25, bge-base, the hybrid and the fine-tuned model side by side on example queries, with the test table.
 
 ## Rules followed
 
