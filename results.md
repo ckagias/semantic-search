@@ -135,6 +135,33 @@ By keyword overlap (terciles of the overlap):
 - Fine-tuning moves 9 queries to rank 1 relative to pretrained but pushes 7 more queries out of the top 100 (9 to 16), the same effect as the lower recall@100 above. The queries were picked by size of the rank gap, so rank-1 BM25 results are over-represented among the losses by construction.
 - One model, one seed, 165 queries; the 20 queries were read by one person. The bge-base comparison against stemmed BM25 by overlap tercile (above, "Per-query comparison", run before stemming) has not been repeated.
 
+## Keyword-overlap probe (validation, `src/probe_overlap.py`)
+
+An informative overlapping word is a query word whose stem occurs in a relevant document and in at most 10% of the corpus (stemmed). 156 of 165 validation queries have at least one and keep at least three words after deleting them; 624 words are involved (4.0 per query), 9.2 words remain on average. Variants of each query (lowercased tokens rejoined; the control is the same tokens with nothing removed):
+
+- overlap deleted: all informative overlapping words removed.
+- overlap replaced: each is replaced by its most frequent WordNet synonym when one exists (at least four letters, alphabetic, single word, stem not in the relevant document) and deleted otherwise; a synonym was found for 265 of the 624 words.
+- random deletion: the same number of informative words chosen at random from the query, mean of 5 draws.
+- rarest deleted: only the overlapping word with the lowest document frequency; random-1: one random informative word, mean of 5 draws.
+
+nDCG@10 on the 156 probed queries (change against the control in brackets):
+
+| system | control | random deletion | overlap deleted | overlap replaced | rarest deleted | random-1 |
+|---|---|---|---|---|---|---|
+| stemmed BM25 | 0.729 | 0.405 (-0.324) | 0.023 (-0.705) | 0.010 (-0.718) | 0.529 (-0.199) | 0.668 (-0.061) |
+| MiniLM pretrained | 0.661 | 0.311 (-0.350) | 0.094 (-0.567) | 0.161 (-0.500) | 0.473 (-0.188) | 0.598 (-0.063) |
+| MiniLM fine-tuned | 0.694 | 0.338 (-0.356) | 0.097 (-0.597) | 0.171 (-0.523) | 0.493 (-0.201) | 0.644 (-0.050) |
+| bge-base | 0.788 | 0.452 (-0.337) | 0.167 (-0.622) | 0.299 (-0.489) | 0.618 (-0.171) | 0.738 (-0.051) |
+
+recall@100, control to overlap deleted: BM25 0.971 to 0.182, MiniLM pretrained 0.966 to 0.419, MiniLM fine-tuned 0.938 to 0.457, bge-base 0.985 to 0.601.
+
+- With every informative overlapping word deleted all four systems lose most of their score: BM25 keeps 3% of its control nDCG@10, MiniLM 14% (pretrained and fine-tuned), bge-base 21%. The neural models fall less than BM25 (drop difference against BM25: pretrained MiniLM +0.138 (+0.079 to +0.197), fine-tuned +0.108 (+0.049 to +0.167), bge-base +0.083 (+0.025 to +0.142)), and keep more of recall@100, but they do not work without those words.
+- Which words are removed matters more than how many: deleting the same number of random informative words costs 0.32 to 0.36 for every system, BM25 and neural alike.
+- Deleting only the rarest overlapping word costs 0.17 to 0.20 for every system; the drop of the neural models against BM25 differs by at most 0.03 and every interval includes zero. One random informative word costs 0.05 to 0.06. The neural models are as sensitive as BM25 to losing the single most distinctive word.
+- Synonym replacement recovers part of the loss for the neural models (+0.067 pretrained, +0.074 fine-tuned, +0.133 bge-base over deletion, all intervals above zero) and none for BM25 (0.023 to 0.010), but all stay well below the control. WordNet is general English and covers fewer than half of the words; replacements are often the wrong sense for biomedical text, so this condition understates what a model that matches meaning could do.
+- Fine-tuning does not change robustness. Fine-tuned minus pretrained is +0.033 (+0.006 to +0.060) on the control, +0.002 (-0.013 to +0.018) with the overlap deleted and +0.009 (-0.007 to +0.026) with synonyms; the drop caused by deletion is 0.030 larger for the fine-tuned model (-0.060 to 0.000). The fine-tuning gain is not visible once the overlapping words are gone.
+- The deleted words are the ones that identify the paper, so a large drop is unavoidable for any model and the probe cannot separate lexical matching from loss of information; the comparison with random deletion and between systems is what carries the result. One fine-tuned model, one seed, validation queries only.
+
 ## Not done yet
 
-Error analysis: keyword-overlap probes (words removed or replaced by synonyms), recall@100 ceiling, test scores for each final system, exact versus approximate search timing, API and page.
+Error analysis: recall@100 ceiling, test scores for each final system, exact versus approximate search timing, API and page.

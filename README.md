@@ -42,6 +42,8 @@ python -m src.score_dense BAAI/bge-base-en-v1.5
 python -m src.score_hybrid
 python -m src.train --negatives hard        # fine-tune MiniLM; --n-queries and --seed for the ablations
 python -m src.summarize_finetune
+python -m src.analyze_errors                 # fine-tuned vs BM25, per query
+python -m src.probe_overlap                 # delete or replace overlapping query words (downloads NLTK WordNet)
 ```
 
 Scripts write per-query score tables to `data/` and models to `models/`; both are untracked.
