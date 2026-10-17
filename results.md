@@ -216,6 +216,28 @@ Paired nDCG@10 differences on the same queries (fine-tuned = mean of the three s
 - recall@100 does not fall with fine-tuning on the test queries (0.927 to 0.930 against 0.925 pretrained), where it fell from 0.943 to 0.908 on validation. The loss seen on validation did not reproduce; the recall@100 difference was not tested on the test queries.
 - Overlap between splits remains: 196 of the 300 test queries have a relevant document that a train query also points to. Fine-tuning used only the 415 clean train queries, so the models did not see those documents.
 
+## Exact search as the corpus grows (`src/bench_scale.py`)
+
+The SciFact embeddings are tiled 1, 10 and 100 times (5,183, 51,830 and 518,300 vectors, exact copies, float32). One query is one matrix-vector product against all vectors followed by the top 100. Median and 95th percentile over the 165 validation queries, 3 repeats, one process on 16 logical cores of a WSL2 machine, numpy default threads. The copies make the timing realistic for memory and arithmetic but not for ranking quality. Times are milliseconds per query.
+
+| model | vectors | matrix | matvec | + full sort (current code) | + partition | batch of 165 (per query) |
+|---|---|---|---|---|---|---|
+| MiniLM, 384 | 5,183 | 8 MB | 0.02 | 0.36 (p95 1.3) | 0.10 | 0.08 |
+| MiniLM, 384 | 51,830 | 80 MB | 0.19 | 5.0 (p95 7.6) | 1.1 | 0.80 |
+| MiniLM, 384 | 518,300 | 796 MB | 15.1 | 59.6 (p95 73.6) | 23.6 | 6.0 |
+| bge-base, 768 | 5,183 | 16 MB | 0.03 | 0.38 (p95 2.3) | 0.26 | 0.10 |
+| bge-base, 768 | 51,830 | 159 MB | 2.9 | 7.2 (p95 11.4) | 3.3 | 0.85 |
+| bge-base, 768 | 518,300 | 1,592 MB | 31.2 | 73.4 (p95 87.4) | 39.4 | 7.8 |
+
+Encoding one query takes a median 6.9 ms with MiniLM and 33.5 ms with bge-base.
+
+- Exact search is cheap at the size of SciFact: under 0.4 ms per query including the sort, a hundredth of the query encoding time. At 518,300 vectors it takes 24 to 39 ms with a partial sort, comparable to encoding the query (bge-base: 39 ms plus 34 ms).
+- The matrix-vector product is memory-bound at large size: 796 MB in 15.1 ms and 1,592 MB in 31.2 ms are both about 51 to 53 GB/s, so time grows with the bytes read (dimension times number of vectors). bge-base costs about twice what MiniLM costs at 518,300 vectors. At 51,830 vectors the gap is larger (0.19 against 2.9 ms), probably because the 80 MB matrix is cached and the 159 MB one is not; this was not tested.
+- The current implementation sorts all scores. That costs 42 to 44 ms more than the product at 518,300 vectors: three times the product for MiniLM, 1.4 times for bge-base. Taking the top 100 with a partition first cuts it to 8 ms more, and the two give the same top 100 on the SciFact corpus (checked on 20 queries; with copies the ranking has ties, so only the timing is meaningful).
+- Scoring the 165 queries as one matrix product is 2.5 to 4 times cheaper per query than one by one (6.0 and 7.8 ms at 518,300 vectors), which matters for offline evaluation and not for a single interactive query.
+- Percentiles at the smallest size are noisy (p95 up to 4.6 ms against a median of 0.26 ms); only the larger sizes are stable.
+- Exact search at 500,000 vectors is already tolerable on 16 cores. The approximate-index experiment has to be judged against 24 to 39 ms per query and 0.8 to 1.6 GB of memory, not against the 0.4 ms at SciFact size.
+
 ## Not done yet
 
-Exact versus approximate search timing, API and page.
+Approximate index against exact search, API and page.

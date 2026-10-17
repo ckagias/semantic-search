@@ -63,6 +63,7 @@ python -m src.train --negatives hard        # fine-tune MiniLM; --n-queries and 
 python -m src.summarize_finetune
 python -m src.analyze_errors                 # fine-tuned vs BM25, per query
 python -m src.probe_overlap                 # delete or replace overlapping query words (downloads NLTK WordNet)
+python -m src.bench_scale                   # exact search time at 5k, 50k and 500k vectors
 ```
 
 Scripts write per-query score tables to `data/` and models to `models/`; both are untracked.
