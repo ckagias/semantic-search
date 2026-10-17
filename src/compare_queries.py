@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 from src.data import load_corpus, load_qrels, load_queries
 from src.dense import DenseSearch, encode_corpus
 from src.index import doc_tokens, tokenize
-from src.keyword import BM25_TUNED, build_bm25
+from src.keyword import build_bm25
 from src.score_dense import BGE_PREFIX
 from src.splits import load_splits
 

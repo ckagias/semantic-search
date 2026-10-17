@@ -292,6 +292,9 @@ Cost per query on 16 logical cores: re-scoring 50 candidates takes a median 1.77
 - Even a re-ranker that worked would be expensive: the ceiling of 0.950 at 50 candidates is 0.156 above the hybrid, but each query costs 1.8 s with the small model and about 11 s with the base model, against 0.1 s for the first stage.
 - The re-ranker was not scored on the test queries: it is a negative result on validation, not a final system.
 
-## Not done yet
+## Not done
 
-API and page.
+- Full validation scoring of `BAAI/bge-reranker-base` as a re-ranker (timed on 5 queries only).
+- The overlap-tercile comparison of bge-base against stemmed BM25 (the one above predates stemming).
+- A second dataset, synthetic-query fine-tuning and distillation.
+- No web API: the demo is `demo.ipynb`.

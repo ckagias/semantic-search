@@ -2,7 +2,7 @@
 
 Keyword search (BM25), pretrained embeddings and a fine-tuned bi-encoder, compared on BEIR SciFact with the same metrics and the same queries. The aim is to understand retrieval end to end: index, query, rank, metrics, and contrastive fine-tuning. A tie with BM25 is a valid result if it can be explained.
 
-Status: work in progress. Phases 0 to 6 are done (setup, data, evaluation, BM25, pretrained embeddings, fine-tuning, error analysis and the final test scoring). Scaling and the API are still to do. The first table is the final score on the 300 test queries, scored once; the second table is the validation numbers behind the choices.
+Status: complete. Setup, data, evaluation, BM25, pretrained embeddings, fine-tuning, error analysis, the final test scoring, search at scale and a demo notebook are done. The first table is the final score on the 300 test queries, scored once; the second table is the validation numbers behind the choices.
 
 ## Results so far
 
@@ -74,7 +74,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Data: BEIR SciFact (`scifact.zip` from the BEIR dataset mirror), unpacked so that `data/scifact/` holds `corpus.jsonl`, `queries.jsonl` and `qrels/{train,test}.tsv`. Torch is the CPU build; every experiment here runs on the CPU.
+Data: BEIR SciFact (`scifact.zip` from https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip, 2.8 MB), unpacked so that `data/scifact/` holds `corpus.jsonl`, `queries.jsonl` and `qrels/{train,test}.tsv`. Torch is the CPU build; every experiment here runs on the CPU.
 
 ## Running
 

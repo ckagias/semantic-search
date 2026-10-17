@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 from src.baselines import random_system
 from src.data import DATA_DIR, load_corpus, load_qrels, load_queries
 from src.dense import DenseSearch, encode_corpus
-from src.evaluate import METRICS, bootstrap_ci, evaluate
+from src.evaluate import bootstrap_ci, evaluate
 from src.hybrid import Hybrid
 from src.keyword import build_bm25
 from src.score_dense import BGE_PREFIX, DEFAULT_MODEL
