@@ -1,6 +1,6 @@
 # Results (interim, validation only)
 
-Dataset: BEIR SciFact, 5,183 documents (title + abstract), binary relevance, mean 1.14 relevant documents per train query. All scores are over the 165 validation queries unless stated; intervals are 95% bootstrap intervals over queries (10,000 resamples), paired when comparing two systems on the same queries. The 300 test queries have not been scored. Fine-tuning figures use one seed except where a seed range is stated.
+Dataset: BEIR SciFact, 5,183 documents (title + abstract), binary relevance, mean 1.14 relevant documents per train query. All scores are over the 165 validation queries unless stated; intervals are 95% bootstrap intervals over queries (10,000 resamples), paired when comparing two systems on the same queries. The 300 test queries have not been scored. Fine-tuning figures are for seed 0 unless a seed range is stated; the range over seeds 0 to 2 is in the Seeds section.
 
 ## Splits
 
@@ -64,11 +64,11 @@ Hard negatives: per pair, one document drawn at random from the top 10 stemmed-B
 
 Paired nDCG@10 differences: hard negatives minus pretrained +0.036 (+0.011 to +0.062); hard negatives minus in-batch +0.031 (+0.011 to +0.053); in-batch minus pretrained +0.006 (-0.011 to +0.022); hard negatives minus stemmed BM25 -0.036 (-0.089 to +0.020).
 
-- In-batch negatives alone: training loss falls from 0.215 to 0.07 within two epochs without a validation gain, as the 15 random negatives are mostly easy.
+- In-batch negatives alone: training loss falls from 0.215 to 0.07 within two epochs. The validation gain is small and depends on the seed (+0.006 to +0.024, see Seeds), as the 15 random negatives are mostly easy.
 - Hard negatives: the gain appears from epoch 2 and is flat over epochs 2 to 4 (0.659 to 0.662). recall@10 rises (0.760 to 0.793) while recall@100 falls (0.943 to about 0.90).
 - The fine-tuned MiniLM does not reach BM25, bge-small or bge-base.
 
-### Ablation on the number of train queries (hard negatives, seed 0)
+### Ablation on the number of train queries (hard negatives, seed 0; three seeds below)
 
 Queries are a seeded sample of the 415 clean train queries. 400 was replaced by 200 because only 415 are usable. Update steps scale with the data (28, 56 and 120), so queries and steps change together.
 
@@ -81,7 +81,30 @@ Queries are a seeded sample of the 415 clean train queries. 400 was replaced by 
 
 ### Seeds
 
-Pending: seeds 1 and 2 for every row above are running; the range over seeds 0 to 2 will replace the single-seed figures here.
+Seeds 0, 1 and 2 for every setting. The seed changes the batch order, the choice of hard negatives and, in the ablation, which queries are sampled. Best-epoch validation nDCG@10 per run (pretrained 0.625):
+
+| setting | seed 0 | seed 1 | seed 2 | mean | recall@10 (mean) | recall@100 (mean) |
+|---|---|---|---|---|---|---|
+| in-batch negatives, 415 queries | 0.631 | 0.639 | 0.650 | 0.640 | 0.783 | 0.944 |
+| hard negatives, 100 queries | 0.631 | 0.635 | 0.642 | 0.636 | 0.770 | 0.929 |
+| hard negatives, 200 queries | 0.656 | 0.648 | 0.653 | 0.652 | 0.811 | 0.928 |
+| hard negatives, 415 queries | 0.662 | 0.661 | 0.662 | 0.662 | 0.811 | 0.908 |
+
+Paired nDCG@10 differences on the validation queries (95% interval), per seed:
+
+| comparison | seed 0 | seed 1 | seed 2 |
+|---|---|---|---|
+| hard negatives minus pretrained | +0.036 (+0.011 to +0.062) | +0.036 (+0.010 to +0.062) | +0.037 (+0.015 to +0.058) |
+| in-batch minus pretrained | +0.006 (-0.011 to +0.022) | +0.014 (-0.002 to +0.029) | +0.024 (+0.007 to +0.041) |
+| hard negatives minus in-batch | +0.031 (+0.011 to +0.053) | +0.022 (0.000 to +0.045) | +0.012 (-0.006 to +0.030) |
+| hard negatives minus stemmed BM25 | -0.036 (-0.089 to +0.020) | -0.037 (-0.088 to +0.017) | -0.036 (-0.086 to +0.015) |
+
+- Hard negatives with all queries are stable across seeds (0.661 to 0.662) and always beat the pretrained model by about +0.036. They never reach BM25 (-0.036 in every seed, intervals include zero).
+- In-batch negatives are not a null result: the gain over pretrained is +0.006, +0.014 and +0.024 depending on the seed, so seed 0 understated it. The in-batch runs spread over 0.019, the hard-negative runs over 0.001.
+- Hard negatives beat in-batch in all three seeds, by +0.012 to +0.031 (mean +0.022), but the per-seed interval excludes zero only for seed 0 (seed 1 touches zero, seed 2 includes it). The ordering is consistent; its size is not well pinned down.
+- The best epoch is chosen per run on the same validation queries, which adds a little optimism to every row equally. The best epoch of the hard-negative runs was 3 or 4, of the in-batch runs 2 to 4.
+- Data size: 100 queries give +0.011 (0.636), 200 give +0.027 (0.652) and 415 give +0.037 (0.662) over pretrained. The spread between seeds is at most 0.011 at 100 queries and 0.001 at 415.
+- With all queries, recall@100 falls to 0.908 with hard negatives (0.898 to 0.922) while in-batch keeps 0.944.
 
 ## Not done yet
 
