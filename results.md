@@ -238,6 +238,44 @@ Encoding one query takes a median 6.9 ms with MiniLM and 33.5 ms with bge-base.
 - Percentiles at the smallest size are noisy (p95 up to 4.6 ms against a median of 0.26 ms); only the larger sizes are stable.
 - Exact search at 500,000 vectors is already tolerable on 16 cores. The approximate-index experiment has to be judged against 24 to 39 ms per query and 0.8 to 1.6 GB of memory, not against the 0.4 ms at SciFact size.
 
+## Approximate indexes against exact search (`src/bench_ann.py`)
+
+bge-base embeddings (768 numbers), FAISS 1.15.1 on the CPU, inner product on normalised vectors, one query at a time, top 10, the 165 validation queries. Two indexes besides the exact FAISS flat index: IVF (inverted file: vectors grouped in `nlist` cells by k-means, the query scans the `nprobe` nearest cells) and HNSW (a navigable graph, M = 16, efConstruction = 100, `efSearch` sets how many candidates are explored). Neither compresses the vectors.
+
+On the real SciFact corpus (5,183 vectors), quality is measured against the relevance judgements as well as against the exact top 10:
+
+| index | setting | median ms | overlap with exact top 10 | nDCG@10 | recall@10 |
+|---|---|---|---|---|---|
+| flat (exact) | n/a | 0.212 | 1.000 | 0.759 | 0.894 |
+| IVF, 64 cells | nprobe 1 | 0.015 | 0.444 | 0.473 | 0.528 |
+| IVF, 64 cells | nprobe 4 | 0.027 | 0.742 | 0.685 | 0.787 |
+| IVF, 64 cells | nprobe 16 | 0.072 | 0.945 | 0.755 | 0.888 |
+| HNSW | efSearch 16 | 0.030 | 0.905 | 0.696 | 0.815 |
+| HNSW | efSearch 32 | 0.038 | 0.967 | 0.747 | 0.876 |
+| HNSW | efSearch 64 | 0.061 | 0.990 | 0.760 | 0.894 |
+| HNSW | efSearch 256 | 0.185 | 1.000 | 0.759 | 0.894 |
+
+For speed at scale, the embeddings are replaced by a synthetic corpus of 518,300 vectors: the 5,183 real vectors plus 99 noisy copies of each (Gaussian noise of 0.02 per dimension, renormalised; mean cosine between a copy and its original 0.87). A copy of a document is nearly tied with it, so two measures are given: overlap of the exact top 10 by vector id, and overlap by source document (id modulo 5,183), which ignores which copy was returned. Median ms per query; the exact flat search took 42 to 53 ms in two runs.
+
+| index | setting | median ms | p95 ms | id overlap | source-document overlap | mean score of top 10 against exact |
+|---|---|---|---|---|---|---|
+| IVF, 2,048 cells | nprobe 1 | 0.16 | 0.35 | 0.561 | 0.505 | 0.975 |
+| IVF, 2,048 cells | nprobe 4 | 0.39 | 0.68 | 0.789 | 0.767 | 0.991 |
+| IVF, 2,048 cells | nprobe 16 | 1.21 | 1.86 | 0.938 | 0.939 | 0.998 |
+| IVF, 2,048 cells | nprobe 64 | 4.05 | 5.12 | 0.988 | 0.993 | 1.000 |
+| HNSW | efSearch 64 | 0.18 | 0.35 | 0.575 | 0.620 | 0.978 |
+| HNSW | efSearch 256 | 0.54 | 0.86 | 0.772 | 0.868 | 0.993 |
+| HNSW | efSearch 512 | 0.99 | 1.41 | 0.833 | 0.938 | 0.997 |
+| HNSW | efSearch 1,024 | 1.85 | 2.46 | 0.874 | 0.981 | 0.999 |
+
+Build time: IVF 12.5 s (including training on 100,000 vectors), HNSW 33 s, flat 1.3 s; at 5,183 vectors 0.09 s, 0.16 s and 0.03 s.
+
+- At the size of SciFact an approximate index buys nothing worth having: exact search takes 0.21 ms, and HNSW at efSearch 64 reaches the same nDCG@10 (0.760) in 0.06 ms. The 0.15 ms saved is far below the query encoding time (34 ms for bge-base). The accuracy cost is real if the setting is too small: IVF with one probe falls to 0.473 nDCG@10.
+- At 518,300 vectors approximate search is about 35 to 50 times faster than exact search at roughly 0.94 overlap: IVF with 16 probes 1.2 ms, HNSW with efSearch 512 1.0 ms, against 42 to 53 ms exact. For 0.98 to 0.99 overlap IVF needs 4 ms (64 probes, 10 to 13 times faster than exact) and HNSW 1.8 ms (efSearch 1,024, 23 to 28 times faster).
+- Speed against accuracy is a curve, not a point: each further halving of the missing neighbours costs roughly two to three times the time, for both indexes. HNSW with M = 16 needs an efSearch of 512 or more before it passes 0.93 on this corpus, much higher than on SciFact itself, where 64 was enough.
+- The returned scores stay close to the exact ones even when the ids differ (score ratio 0.975 to 0.998 for most settings): the missed neighbours are mostly near-ties, which suggests the id overlap overstates the damage on this corpus.
+- Limits: the large corpus is synthetic, made of tight clusters of 100 near-duplicates, which is harder for a graph index than for the real distribution and unlike real documents; the absolute recall figures at scale do not transfer, and the timings are the more reliable result. Index memory was not measured (both indexes store the full 1.6 GB of vectors; HNSW adds its graph), quantisation (PQ) was not tried, one build per index, timings from one run each on 16 logical cores of a WSL2 machine.
+
 ## Not done yet
 
-Approximate index against exact search, API and page.
+API and page.
